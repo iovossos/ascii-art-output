@@ -1,14 +1,17 @@
 package main
 
-import "os"
-
 func main() {
+
+	// Parse the arguments for flags and options
+	if !parseFlagsAndOptions() {
+		return
+	}
 	// Check the validity of the input
 	if !checkValidity() {
 		return
 	}
 	// Load the banner (ASCII art)
-	asciiMap, asciiHeight := loadBanner("standard.txt")
+	asciiMap, asciiHeight := loadBanner(banner)
 	// Process the input string
-	processString(os.Args[1], asciiMap, asciiHeight)
+	processString(PFargs[iofInput], asciiMap, asciiHeight)
 }
