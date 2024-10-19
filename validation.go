@@ -50,7 +50,7 @@ func parseFlagsAndOptions() bool {
 		return true
 	}
 
-	if iofInput+1 == len(PFargs)-2 {
+	if iofInput+1 == len(PFargs)-1 {
 		if PFargs[iofInput+1] == "standard" || PFargs[iofInput+1] == "shadow" || PFargs[iofInput+1] == "thinkertoy" {
 			banner = PFargs[iofInput+1] + ".txt"
 			LenPFargs += 1
