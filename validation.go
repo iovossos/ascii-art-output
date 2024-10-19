@@ -45,8 +45,12 @@ func parseFlagsAndOptions() bool {
 	// I made it so this error would caught while checking for arguments
 	// because that is the only way to catch "Hello" "World" shadow as wrong. But to be more demure,
 	// I will also add a specialized error for not finding the bannner
+	if len(PFargs) == 1 {
+		banner = "standard.txt"
+		return true
+	}
 
-	if iofInput+1 == len(PFargs)-1 {
+	if iofInput+1 == len(PFargs)-2 {
 		if PFargs[iofInput+1] == "standard" || PFargs[iofInput+1] == "shadow" || PFargs[iofInput+1] == "thinkertoy" {
 			banner = PFargs[iofInput+1] + ".txt"
 			LenPFargs += 1
