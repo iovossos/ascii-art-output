@@ -5,20 +5,37 @@ import (
 	"strings"
 )
 
-// Process the input string and print the ASCII art
+// ANSI color codes map
+var ansiColors = map[string]string{
+	"black":   "\033[30m",
+	"red":     "\033[31m",
+	"green":   "\033[32m",
+	"yellow":  "\033[33m",
+	"blue":    "\033[34m",
+	"magenta": "\033[35m",
+	"cyan":    "\033[36m",
+	"white":   "\033[37m",
+	"reset":   "\033[0m",
+}
+
+// Process the input string and print the ASCII art with color
 func processString(input string, asciiMap map[rune][]string, asciiHeight int) {
+
 	// Replace literal "\n" with actual newlines and split into lines
 	input = strings.ReplaceAll(input, `\n`, "\n")
 	inputLines := strings.Split(input, "\n")
+
 	// Process each line separately
 	for _, line := range inputLines {
 		if line == "" {
-			fmt.Println() // Handle empty lines (newline in the ASCII art)
+			fmt.Println() // Handle empty lines
 			continue
 		}
-		// Build and print the ASCII art for the line
+
 		asciiChars := buildAsciiArt(line, asciiMap, asciiHeight)
-		printAsciiArt(asciiChars, asciiHeight)
+
+		highlightMask := buildHighlightMask(line, text2color)
+		printAsciiArt(asciiChars, highlightMask, asciiHeight, colorFlag)
 	}
 }
 
@@ -34,16 +51,41 @@ func buildAsciiArt(line string, asciiMap map[rune][]string, asciiHeight int) [][
 			asciiChars = append(asciiChars, make([]string, asciiHeight))
 		}
 	}
+	saveToOutput(outputFlag, asciiChars, asciiHeight) // Call after asciiChars is generated
 	return asciiChars
 }
 
-// Print the ASCII art for the given characters
-func printAsciiArt(asciiChars [][]string, asciiHeight int) {
+// Build a mask indicating which characters should be highlighted
+func buildHighlightMask(line, substring string) []bool {
+	mask := make([]bool, len(line))
+	idx := 0
+	if substring == "" {
+		return mask // No highlighting if substring is empty
+	}
+	for idx < len(line) {
+		if strings.HasPrefix(line[idx:], substring) {
+			for i := 0; i < len(substring) && idx+i < len(mask); i++ { // Ensure boundaries are respected
+				mask[idx+i] = true
+			}
+			idx += len(substring)
+		} else {
+			idx++
+		}
+	}
+	return mask
+}
+
+// Print the ASCII art for the given characters with color
+func printAsciiArt(asciiChars [][]string, highlightMask []bool, asciiHeight int, color string) {
 	for i := 0; i < asciiHeight; i++ {
-		for _, charLines := range asciiChars {
-			fmt.Print(charLines[i]) // Print each line of each character
-			// Uncomment the next line if you want spaces between characters
-			// fmt.Print(" ")
+		for j, charLines := range asciiChars {
+			if highlightMask[j] {
+				fmt.Print(ansiColors[color])
+			}
+			fmt.Print(charLines[i])
+			if highlightMask[j] {
+				fmt.Print(ansiColors["reset"])
+			}
 		}
 		fmt.Println() // Move to the next line of the ASCII art
 	}

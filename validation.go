@@ -4,23 +4,41 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"unicode"
+
+	asciiart "asciiart/colour"
 )
 
 var (
-	colorFlag   string   // What color are we using?
-	text2color  string   // Which characters will be colored?
-	outputFlag  string   // Do we have an output file to save the result? Which one?
-	alignFlag   string   // Do we use a special alignment?
-	reverseFlag string   // Do we need to reverse a file? ATTENTION DO NOT DO THAT YET
-	PFargs      []string // The arguments we have post-flags (after we remove the flags)
-	iofInput    int      // Which of the PFargs is the input
-	LenPFargs   int      // How many should the PFargs be
-	banner      string   // Which file to use as a banner
-
+	colorFlag   string // What color are we using?
+	text2color  string // Which characters will be colored?
+	outputFlag  string // Do we have an output file to save the result? Which one?
+	alignFlag   string // Do we use a special alignment?
+	reverseFlag string // Do we need to reverse a file? ATTENTION DO NOT DO THAT YET
+	iofInput    int    // Which of the PFargs is the input
+	banner      string // Which file to use as a banner
 )
 
-// Parse for flags and options
+func onlyflagsequal() bool {
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "--color") && !strings.HasPrefix(arg, "--color=") {
+			fmt.Println("Usage: go run . [OPTION] [STRING]")
+			fmt.Println()
+			fmt.Println("EX: go run . --color=<color> <substring to be colored> \"something\"")
+			return false
+		}
+		if strings.HasPrefix(arg, "--output") && !strings.HasPrefix(arg, "--output=") {
+			fmt.Println("Error: --output flag must be in the form --output=value")
+			return false
+		}
+		if strings.HasPrefix(arg, "--justify") && !strings.HasPrefix(arg, "--justify=") {
+			fmt.Println("Error: --justify flag must be in the form --justify=value")
+			return false
+		}
+	}
+	return true
+}
 
 func parseFlagsAndOptions() bool {
 	flag.StringVar(&colorFlag, "color", "", "Set the text color")
@@ -29,59 +47,84 @@ func parseFlagsAndOptions() bool {
 	flag.StringVar(&reverseFlag, "reverse", "", "Reverse this file")
 
 	flag.Parse()
-	PFargs = flag.Args()
 
-	// This is where the input is
-	iofInput = 0
-	if colorFlag != "" {
-		iofInput = 1
-		text2color = PFargs[0] //If there is text to color, the input moves one position to the right
-	}
+	// Case 1: No Color, No Substring, No Banner
 
-	LenPFargs = iofInput + 1 //Readjust what the legit len of PFargs should be. I need this var because of the next conditional
-
-	// The len of PFargs depends on whether or not we are using an extra argument in the end for one of the banners or not.
-	// so for example , "Hello" shadow is ok but "Hello" fuckoff is not.
-	// I made it so this error would caught while checking for arguments
-	// because that is the only way to catch "Hello" "World" shadow as wrong. But to be more demure,
-	// I will also add a specialized error for not finding the bannner
-	if len(PFargs) == 1 {
+	if (len(flag.Args()) == 1) && (colorFlag == "") {
+		iofInput = 0
 		banner = "standard.txt"
 		return true
 	}
 
-	if iofInput+1 == len(PFargs)-1 {
-		if PFargs[iofInput+1] == "standard" || PFargs[iofInput+1] == "shadow" || PFargs[iofInput+1] == "thinkertoy" {
-			banner = PFargs[iofInput+1] + ".txt"
-			LenPFargs += 1
-		} else {
-			fmt.Printf("Error: %s is not a valid banner option.\nPlease choose between \"Standard\",\"Shadow\" or \"Thinkertoy\".", PFargs[iofInput+1])
-			return false
-		}
+	// Case 2: Color, No Substring, No Banner
+	// To add: Color Check
+
+	if (len(flag.Args()) == 1) && (colorFlag != "") {
+		iofInput = 0
+		text2color = flag.Arg(0)
+		banner = "standard.txt"
+		return true
 	}
-	return true
+
+	// Case 3: No Color, No Substring, Banner
+
+	if (len(flag.Args()) == 2) && (colorFlag == "") && isBanner(flag.Arg(1)) {
+		iofInput = 0
+		return true
+	}
+
+	// Case 4: Color, No substring, Banner
+
+	if (len(flag.Args()) == 2) && (colorFlag != "") && isBanner(flag.Arg(1)) {
+		iofInput = 0
+		text2color = flag.Arg(0)
+		return true
+	}
+
+	// Case 5: Color, Substring, No banner
+
+	if (len(flag.Args()) == 2) && (colorFlag != "") && !isBanner(flag.Arg(1)) {
+		iofInput = 1
+		text2color = flag.Arg(0)
+		return true
+	}
+
+	//Case 6: Color, Substring, Banner
+
+	if len(flag.Args()) == 3 {
+		iofInput = 1
+		text2color = flag.Arg(0)
+		banner = flag.Arg(2) + ".txt"
+		return true
+	}
+
+	fmt.Println("\"", flag.Arg(1), "\"", "is not a valid banner, please use \"standard\", \"shadow\" or \"thinkertoy\".")
+	return false
 }
 
-// Check the validity of the input
 func checkValidity() bool {
-	if len(PFargs) != LenPFargs {
-		fmt.Println("Error: Incorrent number of arguments. Read README.md for more information")
-		return false
-	}
-	if isNotASCII(PFargs[iofInput]) {
+	if isNotASCII(flag.Arg(iofInput + 1)) {
 		fmt.Println("Error: Only ASCII characters or newline symbols (\\n) are allowed.")
 		return false
 	}
 
+	// Check if the banner file exists
 	if _, err := os.Stat(banner); err != nil {
 		fmt.Println("File does not exist!")
+		return false
+	}
+
+	// Validate color format
+	if colorFlag != "" {
+		if _, err := asciiart.ColorToAnsi(colorFlag); err != nil {
+			fmt.Printf("Error: Invalid color format '%s'.\n", colorFlag)
+			return false
+		}
 	}
 
 	return true
-
 }
 
-// Check if the input contains non-ASCII characters
 func isNotASCII(s string) bool {
 	for _, r := range s {
 		if r > unicode.MaxASCII {
@@ -89,4 +132,32 @@ func isNotASCII(s string) bool {
 		}
 	}
 	return false
+}
+
+func isBanner(s string) bool {
+	if strings.ToLower(s) == "standard" || strings.ToLower(s) == "shadow" || strings.ToLower(s) == "thinkertoy" {
+		banner = strings.ToLower(s) + ".txt"
+		return true
+	}
+	return false
+}
+
+func validateArgsOrder() bool {
+	hasPositional := false
+
+	// Loop through all arguments after the program name
+	for i, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			if hasPositional {
+				// We found a flag after positional arguments, which is not allowed
+				fmt.Printf("Error: Flag '%s' found after positional arguments at position %d.\n", arg, i+1)
+				return false
+			}
+		} else {
+			// A positional argument is encountered
+			hasPositional = true
+		}
+	}
+
+	return true
 }
